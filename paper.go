@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/gif"
+	"math"
 	"os"
 )
 
@@ -57,10 +58,10 @@ var dotsPerInch = map[uint8]float64{
 
 type paper struct {
 	x            float64 // in inches from the left
-	y            int     // in 1/144 inches from the top
+	y            float64 // in 1/144 inches from the top
 	dpi          float64
-	lineDistance int // in 1/144 inches
-	pageLength   int // in 1/144 inches
+	lineDistance float64 // in 1/144 inches
+	pageLength   float64 // in 1/144 inches
 	reverse      bool
 	bands        uint8
 	width        int
@@ -108,17 +109,18 @@ func (p *paper) lineFeed() {
 }
 
 func (p *paper) formFeed() {
-	p.y = (p.y/p.pageLength + 1) * p.pageLength
+	p.y = (math.Floor(p.y/p.pageLength) + 1) * p.pageLength
 }
 
 // graphics prints a line of graphics, a column of 8 dots for each byte, the
 // least significant bit at the top
 func (p *paper) graphics(columns []uint8) {
+	top := int(math.Round(p.y))
 	for _, column := range columns {
 		left := int(p.x * pixelsPerInch)
 		for bit := 0; bit < 8; bit++ {
 			if column&(1<<bit) != 0 {
-				p.dot(left, p.y+bit*dotPixels)
+				p.dot(left, top+bit*dotPixels)
 			}
 		}
 		p.x += 1 / p.dpi

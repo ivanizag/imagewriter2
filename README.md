@@ -17,3 +17,15 @@ The samples have the picture of each next to it, made so. A sign of The
 Print Shop:
 
 ![A sign of The Print Shop](samples/sign8bits.gif)
+
+With `-epson` it reads the codes of an Epson printer, as the FX-80, instead
+of those of the ImageWriter: the graphics of `ESC K`, `ESC L`, `ESC Y`,
+`ESC Z` and `ESC *`, the top dot in the most significant bit, the distance
+between lines of `ESC 0`, `ESC 1`, `ESC 2`, `ESC 3` and `ESC A`, and the
+colors of `ESC r`. A greeting card of The Print Shop, printed for an Epson:
+
+```bash
+go run . -epson -gif card.gif < samples/cardEpson.prn
+```
+
+![A greeting card of The Print Shop, for an Epson](samples/cardEpson.gif)

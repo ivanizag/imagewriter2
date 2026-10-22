@@ -278,7 +278,7 @@ func readEscapeSequence() string {
 		s = fmt.Sprintf("Set left margin at column %v", column)
 	case 'H':
 		length := nextNumber(4) // In 1/144 of an inch
-		page.pageLength = length
+		page.pageLength = float64(length)
 		s = fmt.Sprintf("Set page length to %v/144 inches", length)
 
 	// Print Head Motion
@@ -313,7 +313,7 @@ func readEscapeSequence() string {
 		s = "8 lines per inch"
 	case 'T':
 		interline := nextNumber(2) // In 1/144 of an inch
-		page.lineDistance = interline
+		page.lineDistance = float64(interline)
 		s = fmt.Sprintf("Distance between lines %v/144 inches", interline)
 	case 'f':
 		page.reverse = false
@@ -384,11 +384,15 @@ func readEscapeSequence() string {
 
 func main() {
 	gifFile = flag.String("gif", "", "save the graphics printed as a GIF picture of the paper")
+	epsonCodes := flag.Bool("epson", false, "read the codes of an Epson printer, as the FX-80, not of the ImageWriter")
 	flag.Parse()
 
 	input = bufio.NewReader(os.Stdin)
 	graphLines = make([][]uint8, 0)
 	page = newPaper()
+	if *epsonCodes {
+		epson()
+	}
 
 	for {
 		ch := nextChar()
