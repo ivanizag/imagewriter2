@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -10,11 +11,19 @@ import (
 
 var input *bufio.Reader
 var graphLines [][]uint8
+var page *paper
+var gifFile *string
 
 func nextChar() uint8 {
 	ch, err := input.ReadByte()
 	if err == io.EOF {
 		fmt.Printf("\n%s\n", sprintGraph(graphLines))
+		if *gifFile != "" {
+			if err := page.saveGif(*gifFile); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
 		os.Exit(0)
 	} else if err != nil {
 		panic(err)
@@ -212,20 +221,28 @@ func readEscapeSequence() string {
 
 	// Character Pitch
 	case 'n':
+		page.setPitch(command)
 		s = "Pitch 9 cpi"
 	case 'N':
+		page.setPitch(command)
 		s = "Pitch 10 cpi"
 	case 'E':
+		page.setPitch(command)
 		s = "Pitch 12 cpi"
 	case 'e':
+		page.setPitch(command)
 		s = "Pitch 13.4 cpi"
 	case 'q':
+		page.setPitch(command)
 		s = "Pitch 15 cpi"
 	case 'Q':
+		page.setPitch(command)
 		s = "Pitch 17 cpi"
 	case 'p':
+		page.setPitch(command)
 		s = "Pitch 144 dpi"
 	case 'P':
+		page.setPitch(command)
 		s = "Pitch 160 dpi"
 
 	// Proportional Character Spacing
@@ -261,6 +278,7 @@ func readEscapeSequence() string {
 		s = fmt.Sprintf("Set left margin at column %v", column)
 	case 'H':
 		length := nextNumber(4) // In 1/144 of an inch
+		page.pageLength = length
 		s = fmt.Sprintf("Set page length to %v/144 inches", length)
 
 	// Print Head Motion
@@ -281,21 +299,27 @@ func readEscapeSequence() string {
 		s = "Clear all tabs"
 	case 'F':
 		pos := nextNumber(4)
+		page.setHeadPosition(pos)
 		s = fmt.Sprintf("Place print head at pixel position %v", pos)
 
 	// Paper motion
 	case 'v':
 		s = "Set top of file"
 	case 'A':
+		page.lineDistance = 24
 		s = "6 lines per inch"
 	case 'B':
+		page.lineDistance = 18
 		s = "8 lines per inch"
 	case 'T':
 		interline := nextNumber(2) // In 1/144 of an inch
+		page.lineDistance = interline
 		s = fmt.Sprintf("Distance between lines %v/144 inches", interline)
 	case 'f':
+		page.reverse = false
 		s = "Forward line feeding"
 	case 'r':
+		page.reverse = true
 		s = "Reverse line feeding"
 	case 'O':
 		s = "Paper-out sensor off"
@@ -320,11 +344,13 @@ func readEscapeSequence() string {
 		bytes := nextBytes(count)
 		s = fmt.Sprintf("Graphic line, %v bytes%s", len(bytes), sprintGraphRow(bytes))
 		graphLines = append(graphLines, bytes)
+		page.graphics(bytes)
 	case 'g':
 		count := 8 * nextNumber(3)
 		bytes := nextBytes(count)
 		s = fmt.Sprintf("Graphic line, %v bytes%s", len(bytes), sprintGraphRow(bytes))
 		graphLines = append(graphLines, bytes)
+		page.graphics(bytes)
 	case 'V':
 		count := nextNumber(4)
 		pattern := nextChar()
@@ -334,10 +360,12 @@ func readEscapeSequence() string {
 		}
 		s = fmt.Sprintf("Graphic line, %v times%s", len(bytes), sprintGraphRow(bytes))
 		graphLines = append(graphLines, bytes)
+		page.graphics(bytes)
 
 	// Color printing
 	case 'K':
 		color := nextNumber(1)
+		page.setColor(color)
 		s = fmt.Sprintf("Set color %v", color)
 
 	// Miscellaneous commands
@@ -355,8 +383,12 @@ func readEscapeSequence() string {
 }
 
 func main() {
+	gifFile = flag.String("gif", "", "save the graphics printed as a GIF picture of the paper")
+	flag.Parse()
+
 	input = bufio.NewReader(os.Stdin)
 	graphLines = make([][]uint8, 0)
+	page = newPaper()
 
 	for {
 		ch := nextChar()
@@ -367,6 +399,12 @@ func main() {
 		case ch < 0x20: // Control codes
 			s := ""
 			switch ch {
+			case 0x0a: // CTRL-J
+				page.lineFeed()
+			case 0x0c: // CTRL-L
+				page.formFeed()
+			case 0x0d: // CTRL-M
+				page.carriageReturn()
 			case 0x0e: // CTRL-N
 				s = " Double width"
 			case 0x0f: // CTRL-O
